@@ -19,6 +19,7 @@ class Graph {
         this.contextMenu = document.getElementById('contextMenu');
         this.deleteItem = document.getElementById('deleteItem');
         this.setWeightItem = document.getElementById('setWeightItem');
+        this.reverseDirectionItem = document.getElementById('reverseDirectionItem');
         
         // キャンバスのサイズを設定
         this.resizeCanvas();
@@ -36,6 +37,7 @@ class Graph {
         // コンテキストメニューのイベントリスナー
         this.deleteItem.addEventListener('click', () => this.handleDelete());
         this.setWeightItem.addEventListener('click', () => this.handleSetWeight());
+        this.reverseDirectionItem.addEventListener('click', () => this.handleReverseDirection());
         document.addEventListener('click', () => this.hideContextMenu());
 
         // 表示形式の切り替えイベントを設定
@@ -45,7 +47,16 @@ class Graph {
 
         // グラフタイプの切り替えイベントを設定
         document.querySelectorAll('input[name="graph-type"]').forEach(radio => {
-            radio.addEventListener('change', () => this.resetGraph());
+            radio.addEventListener('change', () => {
+                const isDirected = radio.value === 'directed';
+                if (isDirected) {
+                    this.convertToDirected();
+                } else {
+                    this.convertToUndirected();
+                }
+                this.draw();
+                this.updateAdjacencyMatrix();
+            });
         });
 
         // undoボタンのイベントリスナーを設定
@@ -346,9 +357,10 @@ class Graph {
         this.contextMenu.style.left = x + 'px';
         this.contextMenu.style.top = y + 'px';
         
-        // 辺が選択されている場合のみ重み設定メニューを表示
-        this.setWeightItem.style.display = 
-            this.contextMenuTarget && this.contextMenuTarget.type === 'edge' ? 'block' : 'none';
+        // 辺が選択されている場合のみ重み設定メニューと向き反転メニューを表示
+        const isEdge = this.contextMenuTarget && this.contextMenuTarget.type === 'edge';
+        this.setWeightItem.style.display = isEdge ? 'block' : 'none';
+        this.reverseDirectionItem.style.display = isEdge ? 'block' : 'none';
     }
 
     // コンテキストメニューを非表示
@@ -510,6 +522,43 @@ class Graph {
         this.undoButton.disabled = true;
         this.draw();
         this.updateAdjacencyMatrix();
+    }
+
+    // 無向グラフを有向グラフに変換
+    convertToDirected() {
+        this.edges = this.edges.map(edge => {
+            if (edge.from > edge.to) {
+                return { from: edge.to, to: edge.from, weight: edge.weight };
+            }
+            return edge;
+        });
+    }
+
+    // 有向グラフを無向グラフに変換
+    convertToUndirected() {
+        const newEdges = [];
+        this.edges.forEach(edge => {
+            // 既存の辺が逆向きで存在しない場合のみ追加
+            if (!newEdges.some(e => (e.from === edge.to && e.to === edge.from))) {
+                newEdges.push(edge);
+            }
+        });
+        this.edges = newEdges;
+    }
+
+    // 向きを反転する処理
+    handleReverseDirection() {
+        if (!this.contextMenuTarget || this.contextMenuTarget.type !== 'edge') return;
+
+        const edge = this.contextMenuTarget.edge;
+        this.saveState();
+        // 辺の向きを反転
+        const temp = edge.from;
+        edge.from = edge.to;
+        edge.to = temp;
+        this.draw();
+        this.updateAdjacencyMatrix();
+        this.hideContextMenu();
     }
 }
 
