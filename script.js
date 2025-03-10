@@ -59,22 +59,37 @@ class Graph {
             });
         });
 
+        // 辺重みの有無の切り替えイベントを設定
+        document.querySelectorAll('input[name="weight-type"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const isWeighted = radio.value === 'weighted';
+                if (!isWeighted) {
+                    // 重みなしの場合、すべての辺の重みを1に設定
+                    this.saveState();
+                    this.edges.forEach(edge => {
+                        edge.weight = 1;
+                    });
+                }
+                // 重み設定メニューの表示/非表示を切り替え
+                this.setWeightItem.style.display = isWeighted ? 'block' : 'none';
+                
+                this.draw();
+                this.updateAdjacencyMatrix();
+            });
+        });
+
         // undoボタンのイベントリスナーを設定
         this.undoButton.addEventListener('click', () => this.undo());
-
-        // 表示形式の切り替えイベントを設定
-        this.showWeights = true; // 初期状態は重みを表示
-        this.toggleWeightDisplay = document.getElementById('toggleWeightDisplay');
-        this.toggleWeightDisplay.addEventListener('change', () => {
-            this.showWeights = this.toggleWeightDisplay.checked;
-            this.draw();
-        });
 
         // 初期描画
         this.draw();
 
         this.clearButton = document.getElementById('clearButton');
         this.clearButton.addEventListener('click', () => this.clearGraph());
+        
+        // 初期状態の設定
+        const isWeighted = document.querySelector('input[name="weight-type"]:checked').value === 'weighted';
+        this.setWeightItem.style.display = isWeighted ? 'block' : 'none';
     }
 
     // 現在の状態を取得
@@ -206,6 +221,7 @@ class Graph {
                 this.selectedVertex = null;
             } else {
                 // 辺を追加
+                const isWeighted = document.querySelector('input[name="weight-type"]:checked').value === 'weighted';
                 const edge = {
                     from: this.selectedVertex.id,
                     to: clickedVertex.id,
@@ -236,6 +252,7 @@ class Graph {
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         const isDirected = document.querySelector('input[name="graph-type"]:checked').value === 'directed';
+        const isWeighted = document.querySelector('input[name="weight-type"]:checked').value === 'weighted';
 
         // 辺を描画
         this.edges.forEach(edge => {
@@ -249,8 +266,8 @@ class Graph {
             this.ctx.strokeStyle = '#666';
             this.ctx.stroke();
 
-            // 辺の重みを描画（チェックボックスがオンの場合）
-            if (this.showWeights) {
+            // 辺の重みを描画（重み付きグラフの場合のみ）
+            if (isWeighted) {
                 const midX = (from.x + to.x) / 2;
                 const midY = (from.y + to.y) / 2;
                 this.ctx.fillStyle = '#000';
@@ -320,34 +337,62 @@ class Graph {
         const n = this.vertices.length;
         const format = document.querySelector('input[name="format"]:checked').value;
         const isUndirected = document.querySelector('input[name="graph-type"]:checked').value === 'undirected';
+        const isWeighted = document.querySelector('input[name="weight-type"]:checked').value === 'weighted';
         const matrixElement = document.getElementById('adjacencyMatrix');
 
         if (format === 'matrix') {
-            // 隣接行列形式（重み付き）
+            // 隣接行列形式
             const matrix = Array(n).fill().map(() => Array(n).fill(0));
             this.edges.forEach(edge => {
-                matrix[edge.from][edge.to] = edge.weight;
+                // 重み付きグラフの場合は重みを使用、そうでない場合は1を使用
+                const value = isWeighted ? edge.weight : 1;
+                matrix[edge.from][edge.to] = value;
                 if (isUndirected) {
-                    matrix[edge.to][edge.from] = edge.weight;
+                    matrix[edge.to][edge.from] = value;
                 }
             });
             matrixElement.textContent = '[\n' + 
                 matrix.map(row => '    [' + row.join(', ') + ']').join(',\n') +
                 '\n]';
         } else {
-            // 隣接リスト形式（重み付き）
+            // 隣接リスト形式
             const adjList = Array(n).fill().map(() => []);
             this.edges.forEach(edge => {
-                adjList[edge.from].push([edge.to, edge.weight]);
-                if (isUndirected) {
-                    adjList[edge.to].push([edge.from, edge.weight]);
+                if (isWeighted) {
+                    // 重み付きグラフの場合は頂点と重みを追加
+                    adjList[edge.from].push([edge.to, edge.weight]);
+                    if (isUndirected) {
+                        adjList[edge.to].push([edge.from, edge.weight]);
+                    }
+                } else {
+                    // 重みなしグラフの場合は頂点のみを追加
+                    adjList[edge.from].push(edge.to);
+                    if (isUndirected) {
+                        adjList[edge.to].push(edge.from);
+                    }
                 }
             });
+            
             // 各頂点の隣接リストをソートして見やすくする
-            adjList.forEach(list => list.sort((a, b) => a[0] - b[0]));
-            matrixElement.textContent = '[\n' + 
-                adjList.map(list => '    [' + list.map(([v, w]) => `[${v}, ${w}]`).join(', ') + ']').join(',\n') +
-                '\n]';
+            adjList.forEach(list => {
+                if (isWeighted) {
+                    list.sort((a, b) => a[0] - b[0]);
+                } else {
+                    list.sort((a, b) => a - b);
+                }
+            });
+            
+            if (isWeighted) {
+                // 重み付きグラフの場合は [頂点, 重み] の形式で出力
+                matrixElement.textContent = '[\n' + 
+                    adjList.map(list => '    [' + list.map(([v, w]) => `[${v}, ${w}]`).join(', ') + ']').join(',\n') +
+                    '\n]';
+            } else {
+                // 重みなしグラフの場合は頂点のみを出力
+                matrixElement.textContent = '[\n' + 
+                    adjList.map(list => '    [' + list.join(', ') + ']').join(',\n') +
+                    '\n]';
+            }
         }
     }
 
@@ -359,7 +404,8 @@ class Graph {
         
         // 辺が選択されている場合のみ重み設定メニューと向き反転メニューを表示
         const isEdge = this.contextMenuTarget && this.contextMenuTarget.type === 'edge';
-        this.setWeightItem.style.display = isEdge ? 'block' : 'none';
+        const isWeighted = document.querySelector('input[name="weight-type"]:checked').value === 'weighted';
+        this.setWeightItem.style.display = isEdge && isWeighted ? 'block' : 'none';
         this.reverseDirectionItem.style.display = isEdge ? 'block' : 'none';
     }
 
@@ -490,6 +536,13 @@ class Graph {
     // 重み設定処理
     handleSetWeight() {
         if (!this.contextMenuTarget || this.contextMenuTarget.type !== 'edge') return;
+        
+        // 重み付きグラフでない場合は処理しない
+        const isWeighted = document.querySelector('input[name="weight-type"]:checked').value === 'weighted';
+        if (!isWeighted) {
+            this.hideContextMenu();
+            return;
+        }
 
         const edge = this.contextMenuTarget.edge;
         const weight = prompt('辺の重みを入力してください:', edge.weight);
