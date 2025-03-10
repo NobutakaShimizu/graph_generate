@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>グラフジェネレーター</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>グラフジェネレーター</h1>
+        <div class="controls">
+            <div class="control-group">
+                <label>グラフの種類：</label>
+                <label>
+                    <input type="radio" name="graph-type" value="undirected" checked>
+                    無向グラフ
+                </label>
+                <label>
+                    <input type="radio" name="graph-type" value="directed">
+                    有向グラフ
+                </label>
+            </div>
+            <div class="control-group">
+                <label>出力形式：</label>
+                <label>
+                    <input type="radio" name="format" value="matrix" checked>
+                    隣接行列
+                </label>
+                <label>
+                    <input type="radio" name="format" value="list">
+                    隣接リスト
+                </label>
+            </div>
+            <div class="control-group">
+                <button id="undoButton" disabled>元に戻す</button>
+            </div>
+        </div>
+        <div class="graph-container">
+            <canvas id="graphCanvas"></canvas>
+        </div>
+        <div class="matrix-container">
+            <pre id="adjacencyMatrix"></pre>
+        </div>
+        <div class="instructions">
+            <p>使い方：</p>
+            <ul>
+                <li>キャンバス上でダブルクリック：新しい頂点を追加</li>
+                <li>頂点を順番にクリック：辺を追加（最初にクリックした頂点が始点）</li>
+                <li>頂点をドラッグ：頂点を移動</li>
+                <li>頂点を右クリック：頂点を削除</li>
+                <li>辺を右クリック：辺を削除</li>
+                <li>元に戻す：直前の操作を取り消し</li>
+            </ul>
+        </div>
+    </div>
+    <div id="contextMenu" class="context-menu">
+        <ul>
+            <li id="deleteItem">削除</li>
+        </ul>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html> 
