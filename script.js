@@ -18,6 +18,7 @@ class Graph {
         this.undoButton = document.getElementById('undoButton');
         this.contextMenu = document.getElementById('contextMenu');
         this.deleteItem = document.getElementById('deleteItem');
+        this.setWeightItem = document.getElementById('setWeightItem');
         
         // キャンバスのサイズを設定
         this.resizeCanvas();
@@ -34,6 +35,7 @@ class Graph {
 
         // コンテキストメニューのイベントリスナー
         this.deleteItem.addEventListener('click', () => this.handleDelete());
+        this.setWeightItem.addEventListener('click', () => this.handleSetWeight());
         document.addEventListener('click', () => this.hideContextMenu());
 
         // 表示形式の切り替えイベントを設定
@@ -49,8 +51,19 @@ class Graph {
         // undoボタンのイベントリスナーを設定
         this.undoButton.addEventListener('click', () => this.undo());
 
+        // 表示形式の切り替えイベントを設定
+        this.showWeights = true; // 初期状態は重みを表示
+        this.toggleWeightDisplay = document.getElementById('toggleWeightDisplay');
+        this.toggleWeightDisplay.addEventListener('change', () => {
+            this.showWeights = this.toggleWeightDisplay.checked;
+            this.draw();
+        });
+
         // 初期描画
         this.draw();
+
+        this.clearButton = document.getElementById('clearButton');
+        this.clearButton.addEventListener('click', () => this.clearGraph());
     }
 
     // 現在の状態を取得
@@ -184,7 +197,8 @@ class Graph {
                 // 辺を追加
                 const edge = {
                     from: this.selectedVertex.id,
-                    to: clickedVertex.id
+                    to: clickedVertex.id,
+                    weight: 1  // デフォルトの重みを1に設定
                 };
                 
                 const isUndirected = document.querySelector('input[name="graph-type"]:checked').value === 'undirected';
@@ -223,6 +237,29 @@ class Graph {
             this.ctx.lineTo(to.x, to.y);
             this.ctx.strokeStyle = '#666';
             this.ctx.stroke();
+
+            // 辺の重みを描画（チェックボックスがオンの場合）
+            if (this.showWeights) {
+                const midX = (from.x + to.x) / 2;
+                const midY = (from.y + to.y) / 2;
+                this.ctx.fillStyle = '#000';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.font = '14px Arial';
+                // 背景を白く塗りつぶして見やすくする
+                const weight = edge.weight.toString();
+                const metrics = this.ctx.measureText(weight);
+                const padding = 2;
+                this.ctx.fillStyle = 'white';
+                this.ctx.fillRect(
+                    midX - metrics.width/2 - padding,
+                    midY - 7 - padding,
+                    metrics.width + padding * 2,
+                    14 + padding * 2
+                );
+                this.ctx.fillStyle = '#000';
+                this.ctx.fillText(weight, midX, midY);
+            }
 
             // 有向グラフの場合は矢印を描画
             if (isDirected) {
@@ -275,30 +312,30 @@ class Graph {
         const matrixElement = document.getElementById('adjacencyMatrix');
 
         if (format === 'matrix') {
-            // 隣接行列形式
+            // 隣接行列形式（重み付き）
             const matrix = Array(n).fill().map(() => Array(n).fill(0));
             this.edges.forEach(edge => {
-                matrix[edge.from][edge.to] = 1;
+                matrix[edge.from][edge.to] = edge.weight;
                 if (isUndirected) {
-                    matrix[edge.to][edge.from] = 1;
+                    matrix[edge.to][edge.from] = edge.weight;
                 }
             });
             matrixElement.textContent = '[\n' + 
                 matrix.map(row => '    [' + row.join(', ') + ']').join(',\n') +
                 '\n]';
         } else {
-            // 隣接リスト形式
+            // 隣接リスト形式（重み付き）
             const adjList = Array(n).fill().map(() => []);
             this.edges.forEach(edge => {
-                adjList[edge.from].push(edge.to);
+                adjList[edge.from].push([edge.to, edge.weight]);
                 if (isUndirected) {
-                    adjList[edge.to].push(edge.from);
+                    adjList[edge.to].push([edge.from, edge.weight]);
                 }
             });
             // 各頂点の隣接リストをソートして見やすくする
-            adjList.forEach(list => list.sort((a, b) => a - b));
+            adjList.forEach(list => list.sort((a, b) => a[0] - b[0]));
             matrixElement.textContent = '[\n' + 
-                adjList.map(list => '    [' + list.join(', ') + ']').join(',\n') +
+                adjList.map(list => '    [' + list.map(([v, w]) => `[${v}, ${w}]`).join(', ') + ']').join(',\n') +
                 '\n]';
         }
     }
@@ -308,6 +345,10 @@ class Graph {
         this.contextMenu.style.display = 'block';
         this.contextMenu.style.left = x + 'px';
         this.contextMenu.style.top = y + 'px';
+        
+        // 辺が選択されている場合のみ重み設定メニューを表示
+        this.setWeightItem.style.display = 
+            this.contextMenuTarget && this.contextMenuTarget.type === 'edge' ? 'block' : 'none';
     }
 
     // コンテキストメニューを非表示
@@ -430,6 +471,43 @@ class Graph {
         }
 
         this.hideContextMenu();
+        this.draw();
+        this.updateAdjacencyMatrix();
+    }
+
+    // 重み設定処理
+    handleSetWeight() {
+        if (!this.contextMenuTarget || this.contextMenuTarget.type !== 'edge') return;
+
+        const edge = this.contextMenuTarget.edge;
+        const weight = prompt('辺の重みを入力してください:', edge.weight);
+        
+        if (weight !== null) {
+            const numWeight = parseFloat(weight);
+            if (!isNaN(numWeight) && numWeight > 0) {
+                this.saveState();
+                edge.weight = numWeight;
+                this.draw();
+                this.updateAdjacencyMatrix();
+            } else {
+                alert('正の数値を入力してください。');
+            }
+        }
+
+        this.hideContextMenu();
+    }
+
+    // グラフをクリア
+    clearGraph() {
+        this.saveState();
+        this.vertices = [];
+        this.edges = [];
+        this.selectedVertex = null;
+        this.isDragging = false;
+        this.draggedVertex = null;
+        this.history = [];
+        this.currentState = this.getState();
+        this.undoButton.disabled = true;
         this.draw();
         this.updateAdjacencyMatrix();
     }

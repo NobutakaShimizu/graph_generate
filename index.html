@@ -32,8 +32,15 @@
                     隣接リスト
                 </label>
             </div>
-            <div class="control-group">
+            <div class="control-group button-group">
                 <button id="undoButton" disabled>元に戻す</button>
+                <button id="clearButton">グラフをクリア</button>
+            </div>
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="toggleWeightDisplay" checked>
+                    辺の重みを表示
+                </label>
             </div>
         </div>
         <div class="graph-container">
@@ -49,7 +56,7 @@
                 <li>頂点を順番にクリック：辺を追加（最初にクリックした頂点が始点）</li>
                 <li>頂点をドラッグ：頂点を移動</li>
                 <li>頂点を右クリック：頂点を削除</li>
-                <li>辺を右クリック：辺を削除</li>
+                <li>辺を右クリック：辺の削除または重みの設定</li>
                 <li>元に戻す：直前の操作を取り消し</li>
             </ul>
         </div>
@@ -57,6 +64,7 @@
     <div id="contextMenu" class="context-menu">
         <ul>
             <li id="deleteItem">削除</li>
+            <li id="setWeightItem">重みを設定</li>
         </ul>
     </div>
     <script src="script.js"></script>
